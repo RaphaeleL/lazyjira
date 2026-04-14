@@ -26,5 +26,5 @@ pub struct User {
     pub display_name: Option<String>,
 
     pub name: Option<String>,   // fallback (older Jira APIs)
-    pub emailAddress: Option<String>,
+    pub email_address: Option<String>,
 }

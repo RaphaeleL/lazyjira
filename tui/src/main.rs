@@ -15,7 +15,7 @@ use data::issues::load_issues;
 
 use ratatui::{backend::CrosstermBackend, Terminal};
 use crossterm::{
-    event::{self, Event, KeyCode, KeyModifiers},
+    event::{self, Event, KeyCode},
     execute,
     terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -117,9 +117,9 @@ fn main() -> io::Result<()> {
                 }
 
                 // optional: clear line (Ctrl+u like shell)
-                (Focus::Jql, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
-                    state.jql.clear();
-                }
+                // (Focus::Jql, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
+                //     state.jql.clear();
+                // }
 
                 // =========================
                 // EXECUTE JQL

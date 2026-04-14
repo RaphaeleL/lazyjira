@@ -14,6 +14,7 @@ pub fn load_issues(jira: &JiraClient, cache_path: &str) -> Vec<Issue> {
     issues
 }
 
+#[allow(dead_code)]
 pub fn load_from_cache(cache_path: &str) -> Vec<Issue> {
     let data = load_cache(cache_path).unwrap_or_default();
 
