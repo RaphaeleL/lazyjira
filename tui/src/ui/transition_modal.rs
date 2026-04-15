@@ -8,7 +8,12 @@ use ratatui::{
 
 use crate::jira::Transition;
 
-pub fn draw_transition_modal(f: &mut Frame, area: Rect, transitions: &[Transition], selected: usize) {
+pub fn draw_transition_modal(
+    f: &mut Frame,
+    area: Rect,
+    transitions: &[Transition],
+    selected: usize,
+) {
     let popup_area = centered_rect(50, 40, area);
     f.render_widget(Clear, popup_area);
 
@@ -44,15 +49,14 @@ pub fn draw_transition_modal(f: &mut Frame, area: Rect, transitions: &[Transitio
         })
         .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Status "));
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Status "));
 
     f.render_widget(list, chunks[1]);
 
     // Instructions
-    let instructions = Paragraph::new(Line::from(vec![
-        Span::raw("j/k: Up/Down | Enter: Confirm | Esc: Cancel"),
-    ]));
+    let instructions = Paragraph::new(Line::from(vec![Span::raw(
+        "j/k: Up/Down | Enter: Confirm | Esc: Cancel",
+    )]));
     f.render_widget(instructions, chunks[2]);
 }
 

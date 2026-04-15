@@ -1,5 +1,5 @@
-use crate::model::issue::Issue;
 use crate::jira::JiraClient;
+use crate::model::issue::Issue;
 
 pub struct AppState {
     pub issues: Vec<Issue>,
@@ -27,13 +27,20 @@ pub enum Focus {
 }
 
 impl AppState {
-    pub fn new(issues: Vec<Issue>, jira: JiraClient, default_project: String, default_issue_type: String) -> Self {
+    pub fn new(
+        issues: Vec<Issue>,
+        jira: JiraClient,
+        default_project: String,
+        default_issue_type: String,
+    ) -> Self {
         Self {
             issues,
             selected: 0,
             list_offset: 0,
             desc_scroll: 0,
-            jql: "assignee = currentUser() ORDER BY updated DESC".chars().collect(),
+            jql: "assignee = currentUser() ORDER BY updated DESC"
+                .chars()
+                .collect(),
             jql_cursor: "assignee = currentUser() ORDER BY updated DESC".len(),
             editing_jql: false,
             jira,
@@ -46,7 +53,7 @@ impl AppState {
             transition_selected: 0,
         }
     }
-    
+
     pub fn jql_insert(&mut self, c: char) {
         self.jql.insert(self.jql_cursor, c);
         self.jql_cursor += 1;

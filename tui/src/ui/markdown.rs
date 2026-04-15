@@ -1,4 +1,4 @@
-use pulldown_cmark::{Parser, Event, Tag, TagEnd};
+use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 
 pub fn render_markdown(input: &str) -> String {
     let parser = Parser::new(input);

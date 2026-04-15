@@ -7,7 +7,7 @@ pub fn save_cache(path: &str, data: &serde_json::Value) {
 
 #[allow(dead_code)]
 pub fn load_cache(path: &str) -> Option<serde_json::Value> {
-    fs::read_to_string(path).ok().and_then(|s| {
-        serde_json::from_str(&s).ok()
-    })
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
 }

@@ -43,9 +43,7 @@ Transition Modal:
 Press Esc to close this help.
 "#;
 
-    let block = Block::default()
-        .title("Help")
-        .borders(Borders::ALL);
+    let block = Block::default().title("Help").borders(Borders::ALL);
 
     let paragraph = Paragraph::new(Text::raw(help_text))
         .block(block)
