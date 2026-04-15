@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use directories::ProjectDirs;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -109,12 +108,28 @@ enum JiraCommand {
 }
 
 fn get_config_dir() -> PathBuf {
-    if let Some(proj_dirs) = ProjectDirs::from("jira", "lazyjira", "LazyJira") {
-        proj_dirs.config_dir().to_path_buf()
-    } else {
-        env::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".jira")
+    let home = env::home_dir().unwrap_or_else(|| PathBuf::from("."));
+
+    #[cfg(target_os = "macos")]
+    {
+        home.join("Library/Application Support/LazyJira")
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        home.join(".config/lazyjira")
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        env::var("APPDATA")
+            .map(|p| PathBuf::from(p).join("LazyJira"))
+            .unwrap_or_else(|_| home.join("AppData/Roaming/LazyJira"))
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    {
+        home.join(".lazyjira")
     }
 }
 
