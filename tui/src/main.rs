@@ -20,6 +20,7 @@ use crossterm::{
     terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::io;
+use std::process;
 
 pub fn reload_issues(state: &mut AppState) {
     let issues = state.jira.search_issues(&state.jql);
@@ -69,6 +70,10 @@ fn main() -> io::Result<()> {
             crate::layout::left::draw(f, middle[0], &state);
             crate::layout::right::draw(f, middle[1], &state);
             crate::layout::bottom::draw(f, chunks[2], &state);
+
+            if state.show_help {
+                crate::ui::help::draw_help(f, f.area());
+            }
         })?;
 
         if let Event::Key(key) = event::read()? {
@@ -79,17 +84,30 @@ fn main() -> io::Result<()> {
                 // =========================
                 (_, KeyCode::Char('q'), _) => break,
 
+                (_, KeyCode::Char('?'), _) => {
+                    state.show_help = !state.show_help;
+                }
+
                 // =========================
                 // FOCUS SWITCH
                 // =========================
-                (_, KeyCode::Char('/'), _) => {
+                (_, KeyCode::Char('@'), _) => {
                     state.focus = Focus::Jql;
                     state.editing_jql = true;
                 }
+                (_, KeyCode::Char('#'), _) => {
+                    state.focus = Focus::Jql;
+                    state.editing_jql = true;
+                    state.jql = "".to_string();
+                }
 
                 (_, KeyCode::Esc, _) => {
-                    state.focus = Focus::Issues;
-                    state.editing_jql = false;
+                    if state.show_help {
+                        state.show_help = false;
+                    } else {
+                        state.focus = Focus::Issues;
+                        state.editing_jql = false;
+                    }
                 }
 
                 // =========================
@@ -104,6 +122,13 @@ fn main() -> io::Result<()> {
 
                 (Focus::Issues, KeyCode::Char('u'), _) => {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
+                }
+
+                (Focus::Issues, KeyCode::Char('o'), _) => {
+                    if let Some(issue) = state.issues.get(state.selected) {
+                        let url = format!("{}/browse/{}", state.jira.jira_url(), issue.key);
+                        let _ = process::Command::new("open").arg(&url).spawn();
+                    }
                 }
 
                 // =========================

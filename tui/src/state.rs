@@ -11,6 +11,7 @@ pub struct AppState {
     pub editing_jql: bool,
     pub jira: JiraClient,
     pub focus: Focus,
+    pub show_help: bool,
 }
 
 pub enum Focus {
@@ -30,6 +31,7 @@ impl AppState {
             editing_jql: false,
             jira,
             focus: Focus::Issues,
+            show_help: false,
         }
     }
     

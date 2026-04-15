@@ -45,4 +45,8 @@ impl JiraClient {
             .collect()
     }
 
+    pub fn jira_url(&self) -> &str {
+        &self.config.jira_url
+    }
+
 }
