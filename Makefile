@@ -1,17 +1,28 @@
-INSTALL_DIR := $(HOME)/.local/bin
-CLI_SCRIPT := $(CURDIR)/cli/jira.sh
+.PHONY: clean 
+clean: 
+	rm -rf cli/target || true
+	rm -rf tui/target || true
+
+.PHONY: remove 
+remove:
+	rm $(HOME)/.local/bin/jira || true
+	rm $(HOME)/.local/bin/lazyjira || true
 
 .PHONY: install
-prepare:
-	mkdir -p $(INSTALL_DIR)
-	chmod +x $(CLI_SCRIPT)
+prepare: remove
+	mkdir -p $(HOME)/.local/bin/
 
-.PHONY: install-cli
-install-cli: prepare 
-	rm $(INSTALL_DIR)/jira
-	cp $(CLI_SCRIPT) $(INSTALL_DIR)/jira
+.PHONY: build
+build:
+	cd cli && cargo build --release
+	cd tui && cargo build --release
 
-.PHONY: link-cli
-link-cli: prepare 
-	rm $(INSTALL_DIR)/jira
-	ln -sf $(CLI_SCRIPT) $(INSTALL_DIR)/jira
+.PHONY: install
+install: build prepare 
+	cp $(CURDIR)/cli/target/release/lazyjira-cli $(HOME)/.local/bin/jira
+	cp $(CURDIR)/tui/target/release/lazyjira-tui $(HOME)/.local/bin/lazyjira
+
+.PHONY: link
+link: build prepare 
+	ln -sf $(CURDIR)/cli/target/release/lazyjira-cli $(HOME)/.local/bin/jira
+	ln -sf $(CURDIR)/tui/target/release/lazyjira-tui $(HOME)/.local/bin/lazyjira
