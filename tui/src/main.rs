@@ -31,11 +31,12 @@ pub fn reload_issues(state: &mut AppState) {
 }
 
 fn main() -> io::Result<()> {
-    let config = Config::load();
-    let jira = JiraClient::new(config);
+    let config = Config::load().expect("Failed to load config. Please run 'jira init' first.");
+    let jira = JiraClient::new(config.clone());
 
-    let cache_path = std::env::var("HOME").unwrap() + "/.jira/cache/issues.json";
-    let issues = load_issues(&jira, &cache_path);
+    let cache_path = Config::get_cache_dir().join("issues.json");
+    let cache_path_str = cache_path.to_str().unwrap();
+    let issues = load_issues(&jira, cache_path_str);
 
     let mut state = AppState::new(issues, jira);
 
