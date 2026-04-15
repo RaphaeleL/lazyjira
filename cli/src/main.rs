@@ -5,9 +5,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command as ProcCommand, Stdio};
 
 #[derive(Parser)]
 #[command(name = "jira")]
@@ -39,11 +37,11 @@ enum JiraCommand {
     ///   jira from xcxa1b4,xcxa1b9
     From { users: String },
 
-    /// Interactive issue picker using fzf
+    /// Show JQL history
     ///
     /// Examples:
-    ///   jira pick
-    Pick,
+    ///   jira history
+    History,
 
     /// Search issues via JQL
     ///
@@ -143,6 +141,10 @@ fn get_env_file() -> PathBuf {
 
 fn get_cache_file() -> PathBuf {
     get_cache_dir().join("issues.json")
+}
+
+fn get_history_file() -> PathBuf {
+    get_cache_dir().join("history.json")
 }
 
 fn ensure_dirs() {
@@ -349,6 +351,41 @@ fn load_cached_issues() -> Result<JiraSearchResponse, String> {
     serde_json::from_str(&contents).map_err(|e| e.to_string())
 }
 
+fn save_jql_history(jql: &str) {
+    let history_file = get_history_file();
+    let mut history: Vec<String> = if history_file.exists() {
+        fs::read_to_string(&history_file)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    if !history.contains(&jql.to_string()) {
+        history.insert(0, jql.to_string());
+        if history.len() > 50 {
+            history.truncate(50);
+        }
+        fs::write(
+            &history_file,
+            serde_json::to_string(&history).unwrap_or_default(),
+        )
+        .ok();
+    }
+}
+
+fn load_jql_history() -> Vec<String> {
+    let history_file = get_history_file();
+    if !history_file.exists() {
+        return vec![];
+    }
+    fs::read_to_string(&history_file)
+        .ok()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_default()
+}
+
 fn issues_from_cache() -> Vec<(String, String, String)> {
     match load_cached_issues() {
         Ok(resp) => resp
@@ -425,6 +462,7 @@ fn cmd_mine(client: &Client, config: &Config) {
 
 fn cmd_from(client: &Client, config: &Config, users: &str) {
     let jql = format!("assignee in ({}) ORDER BY updated DESC", users);
+    save_jql_history(&jql);
 
     match api_get(client, config, &jql) {
         Ok(resp) => {
@@ -439,49 +477,9 @@ fn cmd_from(client: &Client, config: &Config, users: &str) {
     }
 }
 
-fn cmd_pick(client: &Client, config: &Config) {
-    if let Err(e) = cache_issues(client, config) {
-        eprintln!("Failed to cache issues: {}", e);
-    }
-
-    let issues = issues_from_cache();
-    let items: Vec<String> = issues
-        .iter()
-        .map(|(key, status, summary)| format!("{} [{}] {}", key, status, summary))
-        .collect();
-
-    if items.is_empty() {
-        eprintln!("No issues in cache");
-        return;
-    }
-
-    let input = items.join("\n");
-    let child = ProcCommand::new("fzf")
-        .arg("--prompt=jira> ")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn();
-
-    match child {
-        Ok(mut process) => {
-            if let Some(ref mut stdin) = process.stdin.take() {
-                let _ = stdin.write_all(input.as_bytes());
-            }
-            let output = process.wait_with_output().ok();
-            if let Some(out) = output {
-                let selected = String::from_utf8_lossy(&out.stdout);
-                let key = selected.trim().split_whitespace().next().unwrap_or("");
-                if !key.is_empty() {
-                    println!("{}", key);
-                }
-            }
-        }
-        Err(e) => eprintln!("fzf error: {}", e),
-    }
-}
-
 fn cmd_search(client: &Client, config: &Config, jql: Option<String>) {
     let query = jql.unwrap_or_else(|| "assignee = currentUser()".to_string());
+    save_jql_history(&query);
 
     match api_get(client, config, &query) {
         Ok(resp) => {
@@ -532,6 +530,7 @@ fn cmd_create(
 fn cmd_component(client: &Client, name: &str, config: &Config) {
     let normalized = name.to_uppercase();
     let jql = format!("component = \"{}\" ORDER BY updated DESC", normalized);
+    save_jql_history(&jql);
 
     match api_get(client, config, &jql) {
         Ok(resp) => {
@@ -572,11 +571,7 @@ fn cmd_update(client: &Client, config: &Config, state: &str, key: &str) {
 
     let payload = json!({ "transition": { "id": transition_id } });
 
-    client
-        .post(&url)
-        .json(&payload)
-        .send()
-        .ok();
+    client.post(&url).json(&payload).send().ok();
 
     println!("Updated Ticket {} to {}", key, state);
 
@@ -596,11 +591,11 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
             match resp.json::<serde_json::Value>() {
                 Ok(issue) => {
                     let fields = &issue["fields"];
-                    
+
                     // Header
                     println!("\n{}: {}", &issue["key"], fields["summary"]);
                     println!("{}\n", "=".repeat(80));
-                    
+
                     // Type and Status
                     if let Some(issue_type) = fields["issuetype"]["name"].as_str() {
                         println!("Type: {}", issue_type);
@@ -608,7 +603,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                     if let Some(status) = fields["status"]["name"].as_str() {
                         println!("Status: {}", status);
                     }
-                    
+
                     // People
                     if let Some(assignee) = fields["assignee"].as_object() {
                         if let Some(name) = assignee.get("displayName").and_then(|v| v.as_str()) {
@@ -620,7 +615,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                     if let Some(reporter) = fields["reporter"]["displayName"].as_str() {
                         println!("Reporter: {}", reporter);
                     }
-                    
+
                     // Details
                     if let Some(priority) = fields["priority"]["name"].as_str() {
                         println!("Priority: {}", priority);
@@ -628,7 +623,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                     if let Some(project) = fields["project"]["name"].as_str() {
                         println!("Project: {}", project);
                     }
-                    
+
                     // Dates
                     if let Some(created) = fields["created"].as_str() {
                         println!("Created: {}", created);
@@ -639,7 +634,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                     if let Some(due) = fields["duedate"].as_str() {
                         println!("Due Date: {}", due);
                     }
-                    
+
                     // Description
                     if let Some(desc) = fields["description"].as_str() {
                         if !desc.is_empty() {
@@ -648,7 +643,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                             println!("{}", desc);
                         }
                     }
-                    
+
                     // Components
                     if let Some(components) = fields["components"].as_array() {
                         if !components.is_empty() {
@@ -661,7 +656,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                             }
                         }
                     }
-                    
+
                     // Labels
                     if let Some(labels) = fields["labels"].as_array() {
                         if !labels.is_empty() {
@@ -674,7 +669,7 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                             }
                         }
                     }
-                    
+
                     // Issue Links
                     if let Some(links) = fields["issuelinks"].as_array() {
                         if !links.is_empty() {
@@ -684,18 +679,26 @@ fn cmd_show(client: &Client, config: &Config, key: &str) {
                                 if let Some(link_type) = link["type"]["name"].as_str() {
                                     if let Some(out_link) = link["outwardIssue"].as_object() {
                                         if let Some(linked_key) = out_link["key"].as_str() {
-                                            println!("  {} -> {} {}", link_type, linked_key, out_link["fields"]["summary"]);
+                                            println!(
+                                                "  {} -> {} {}",
+                                                link_type,
+                                                linked_key,
+                                                out_link["fields"]["summary"]
+                                            );
                                         }
                                     } else if let Some(in_link) = link["inwardIssue"].as_object() {
                                         if let Some(linked_key) = in_link["key"].as_str() {
-                                            println!("  {} <- {} {}", link_type, linked_key, in_link["fields"]["summary"]);
+                                            println!(
+                                                "  {} <- {} {}",
+                                                link_type, linked_key, in_link["fields"]["summary"]
+                                            );
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    
+
                     println!("\n{}\n", "=".repeat(80));
                 }
                 Err(e) => eprintln!("Error parsing response: {}", e),
@@ -716,7 +719,14 @@ fn cmd_doctor() {
     println!("Config file: {:?}", env_file);
 
     if let Some(config) = load_config() {
-        println!("Token: {}", if config.token.is_empty() { "not set" } else { "set" });
+        println!(
+            "Token: {}",
+            if config.token.is_empty() {
+                "not set"
+            } else {
+                "set"
+            }
+        );
         println!("Jira URL: {}", config.jira_url);
         println!("Default Project: {}", config.default_project);
         println!("Issue Type: {}", config.issue_type);
@@ -735,6 +745,17 @@ fn cmd_doctor() {
     }
 }
 
+fn cmd_history() {
+    let history = load_jql_history();
+    if history.is_empty() {
+        println!("No JQL history found");
+    } else {
+        for (i, jql) in history.iter().enumerate() {
+            println!("{}: {}", i + 1, jql);
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
@@ -750,7 +771,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         JiraCommand::Mine => cmd_mine(&client, &config),
         JiraCommand::From { users } => cmd_from(&client, &config, &users),
-        JiraCommand::Pick => cmd_pick(&client, &config),
         JiraCommand::Search { jql } => cmd_search(&client, &config, jql),
         JiraCommand::Create {
             name,
@@ -764,6 +784,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         JiraCommand::Show { key } => cmd_show(&client, &config, &key),
         JiraCommand::Init => unreachable!(),
         JiraCommand::Doctor => cmd_doctor(),
+        JiraCommand::History => cmd_history(),
     }
 
     Ok(())
