@@ -1,9 +1,9 @@
 use ratatui::{
     layout::Rect,
+    style::{Color, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    style::{Style, Color},
     Frame,
-    text::{Span, Line},
 };
 
 use crate::state::{AppState, Focus};
@@ -17,17 +17,17 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
         Style::default()
     };
 
-    let title = if is_active {
-        " JQL (active) "
-    } else {
-        " JQL "
-    };
+    let title = if is_active { " JQL (active) " } else { " JQL " };
 
     let text: String = state.jql.iter().collect();
 
     let mut display = text.clone();
     if is_active {
-        let byte_pos = text.char_indices().nth(state.jql_cursor).map(|(i, _)| i).unwrap_or(text.len());
+        let byte_pos = text
+            .char_indices()
+            .nth(state.jql_cursor)
+            .map(|(i, _)| i)
+            .unwrap_or(text.len());
         display.insert(byte_pos, '█');
     }
 

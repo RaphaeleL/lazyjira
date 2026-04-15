@@ -1,7 +1,7 @@
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
-    widgets::{Block, Borders, ListItem, List},
+    widgets::{Block, Borders, List, ListItem},
     Frame,
 };
 
@@ -31,11 +31,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
 
     let list_offset = list_offset.min(max_offset);
 
-    let visible_items = state
-        .issues
-        .iter()
-        .skip(list_offset)
-        .take(viewport);
+    let visible_items = state.issues.iter().skip(list_offset).take(viewport);
 
     let items: Vec<ListItem> = visible_items
         .enumerate()
@@ -50,10 +46,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
 
             ListItem::new(format!(
                 "{}{} [{}] {}",
-                prefix,
-                issue.key,
-                issue.fields.status.name,
-                issue.fields.summary
+                prefix, issue.key, issue.fields.status.name, issue.fields.summary
             ))
         })
         .collect();

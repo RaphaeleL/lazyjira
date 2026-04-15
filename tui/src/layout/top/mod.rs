@@ -5,11 +5,10 @@ use ratatui::{
     Frame,
 };
 
-use crate::state::AppState;
 use crate::constants::ENABLE_COLORS;
+use crate::state::AppState;
 
 pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
-
     let border_style = if ENABLE_COLORS {
         Style::default().fg(Color::Cyan)
     } else {
