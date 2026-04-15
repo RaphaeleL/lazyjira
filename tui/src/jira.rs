@@ -42,7 +42,7 @@ impl JiraClient {
             .unwrap()
     }
 
-    pub fn mock_search(&self, jql: &str) -> serde_json::Value {
+    pub fn mock_search(&self, _jql: &str) -> serde_json::Value {
         let issues = vec![
             Issue {
                 key: "PROJ-101".to_string(),

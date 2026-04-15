@@ -6,13 +6,41 @@ use ratatui::{
 };
 
 use crate::constants::ENABLE_COLORS;
-use crate::state::AppState;
+use crate::state::{AppState, Pane};
 
 pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
+    let is_focused = state.focused_pane == Some(Pane::Top);
+    let is_active = state.active_pane == Pane::Top;
+    let show_pane = state.focused_pane.is_none() || is_focused;
+
+    if !show_pane {
+        return;
+    }
+
+    let draw_area = if is_focused { f.area() } else { area };
+
     let border_style = if ENABLE_COLORS {
-        Style::default().fg(Color::Cyan)
+        if is_focused {
+            Style::default().fg(Color::Green)
+        } else if is_active {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::Cyan)
+        }
     } else {
-        Style::default()
+        if is_focused || is_active {
+            Style::default().bold()
+        } else {
+            Style::default()
+        }
+    };
+
+    let title_prefix = if is_focused {
+        ">>> "
+    } else if is_active {
+        ">> "
+    } else {
+        ""
     };
 
     let header = if let Some(issue) = state.selected() {
@@ -28,12 +56,14 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
         "No issue selected".to_string()
     };
 
+    let title = format!("{} Current Ticket ", title_prefix);
+
     let widget = Paragraph::new(header).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Current Ticket ")
+            .title(title)
             .border_style(border_style),
     );
 
-    f.render_widget(widget, area);
+    f.render_widget(widget, draw_area);
 }

@@ -29,6 +29,7 @@ pub struct User {
     pub email_address: Option<String>,
 }
 
+#[allow(dead_code)]
 pub fn mock_issues() -> Vec<Issue> {
     vec![
         Issue {

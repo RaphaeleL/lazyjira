@@ -6,16 +6,44 @@ use ratatui::{
 };
 
 use crate::constants::ENABLE_COLORS;
-use crate::state::AppState;
+use crate::state::{AppState, Pane};
 
 pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
+    let is_focused = state.focused_pane == Some(Pane::Left);
+    let is_active = state.active_pane == Pane::Left;
+    let show_pane = state.focused_pane.is_none() || is_focused;
+
+    if !show_pane {
+        return;
+    }
+
+    let draw_area = if is_focused { f.area() } else { area };
+
     let border_style = if ENABLE_COLORS {
-        Style::default().fg(Color::Cyan)
+        if is_focused {
+            Style::default().fg(Color::Green)
+        } else if is_active {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default().fg(Color::Cyan)
+        }
     } else {
-        Style::default()
+        if is_focused || is_active {
+            Style::default().bold()
+        } else {
+            Style::default()
+        }
     };
 
-    let height = area.height as usize;
+    let title_prefix = if is_focused {
+        ">>> "
+    } else if is_active {
+        ">> "
+    } else {
+        ""
+    };
+
+    let height = draw_area.height as usize;
     let viewport = height.saturating_sub(2);
     let max_offset = state.issues.len().saturating_sub(viewport);
     let list_offset = state.list_offset.min(max_offset);
@@ -51,12 +79,14 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
         })
         .collect();
 
+    let title = format!("{}Issues ", title_prefix);
+
     let list = List::new(items).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Issues ")
+            .title(title)
             .border_style(border_style),
     );
 
-    f.render_widget(list, area);
+    f.render_widget(list, draw_area);
 }

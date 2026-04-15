@@ -1,24 +1,37 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
     text::Text,
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
 
-pub fn draw_help(f: &mut Frame, area: Rect) {
+use crate::constants::ENABLE_COLORS;
+use crate::state::AppState;
+
+pub fn draw_help(f: &mut Frame, area: Rect, state: &AppState) {
+    let style = if ENABLE_COLORS {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default()
+    };
+
     let help_text = r#"Global:
   q          - Quit application
   ?          - Toggle this help
-  f          - Toggle full screen description view
-  n          - Create new issue
+  f          - Focus/unfocus current pane fullscreen
+  c          - Create new issue
+  Tab        - Cycle forward through panes
+  Shift+Tab  - Cycle backward through panes
 
-Issue Navigation (when focused on issues):
-  j          - Next issue
-  k          - Previous issue
-  u          - Update issue status
+Pane Navigation (based on active pane):
+  Ctrl+n     - Next (Left pane: next issue, Right/Top: scroll down)
+  Ctrl+p     - Previous (Left pane: prev issue, Right/Top: scroll up)
+
+Issue Actions:
+  u          - Update issue status (show transitions)
   o          - Open issue in browser
   Ctrl+o     - Copy issue key to clipboard
-  Ctrl+d/u   - Scroll description down/up
 
 JQL Search:
   @          - Focus JQL input (append mode)
@@ -31,24 +44,30 @@ JQL Search:
   Ctrl+u     - Clear line
   Delete     - Delete character
 
-Description Focus (full screen):
-  j/k        - Scroll description up/down
-  Ctrl+d/u   - Scroll description down/up
-
 Transition Modal:
-  j/k        - Select previous/next status
+  Ctrl+n/p   - Select next/previous status
   Enter      - Apply transition
   Esc        - Cancel
+
+Panes:
+  Top     - Current ticket info
+  Left   - Issue list
+  Right  - Description
+  Bottom - JQL input
 
 Press Esc to close this help.
 "#;
 
-    let block = Block::default().title("Help").borders(Borders::ALL);
+    let block = Block::default()
+        .title(" Help ")
+        .borders(Borders::ALL)
+        .border_style(style);
 
     let paragraph = Paragraph::new(Text::raw(help_text))
         .block(block)
         .alignment(Alignment::Left)
-        .wrap(Wrap { trim: true });
+        .wrap(Wrap { trim: true })
+        .scroll((state.help_scroll, 0));
 
     let popup_area = centered_rect(60, 80, area);
     f.render_widget(Clear, popup_area);

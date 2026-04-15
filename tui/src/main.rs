@@ -13,7 +13,7 @@ use constants::DEV_MODE;
 use data::issues::load_issues;
 use jira::JiraClient;
 
-use state::{AppState, Focus};
+use state::{AppState, Focus, Pane};
 
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
@@ -121,7 +121,7 @@ fn run_app(
             crate::layout::bottom::draw(f, chunks[2], &state);
 
             if state.show_help {
-                crate::ui::help::draw_help(f, f.area());
+                crate::ui::help::draw_help(f, f.area(), &state);
             }
 
             if state.show_create_form {
@@ -200,6 +200,14 @@ fn run_app(
                         state.editing_jql = false;
                         continue;
                     }
+                    KeyCode::Tab => {
+                        state.active_pane = state.active_pane.next();
+                        continue;
+                    }
+                    KeyCode::BackTab => {
+                        state.active_pane = state.active_pane.prev();
+                        continue;
+                    }
                     _ => continue,
                 }
             }
@@ -252,12 +260,12 @@ fn run_app(
             // Handle transition modal input
             if state.show_transition_modal {
                 match key.code {
-                    KeyCode::Char('j') | KeyCode::Down => {
+                    KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         state.transition_selected =
                             (state.transition_selected + 1) % state.transitions.len();
                         continue;
                     }
-                    KeyCode::Char('k') | KeyCode::Up => {
+                    KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         if state.transition_selected > 0 {
                             state.transition_selected -= 1;
                         } else {
@@ -293,37 +301,22 @@ fn run_app(
 
                 (_, KeyCode::Char('?'), _) => {
                     state.show_help = !state.show_help;
+                    state.help_scroll = 0;
                 }
 
-                (_, KeyCode::Char('n'), _) => {
-                    state.show_create_form = true;
+                // =========================
+                // HELP SCROLLING
+                // =========================
+                (_, KeyCode::Char('n'), KeyModifiers::CONTROL) if state.show_help => {
+                    state.help_scroll = state.help_scroll.saturating_add(1);
                 }
 
-                (_, KeyCode::Char('f'), _) => {
-                    state.focus = match state.focus {
-                        Focus::Issues => Focus::Description,
-                        Focus::Description => Focus::Issues,
-                        Focus::Jql => Focus::Issues,
-                    };
+                (_, KeyCode::Char('p'), KeyModifiers::CONTROL) if state.show_help => {
+                    state.help_scroll = state.help_scroll.saturating_sub(1);
                 }
 
-                (Focus::Issues, KeyCode::Char('u'), modifiers)
-                    if !modifiers.contains(KeyModifiers::CONTROL) =>
-                {
-                    if let Some(issue) = state.selected() {
-                        match state.jira.get_transitions(&issue.key) {
-                            Ok(transitions) => {
-                                if !transitions.is_empty() {
-                                    state.transitions = transitions;
-                                    state.transition_selected = 0;
-                                    state.show_transition_modal = true;
-                                }
-                            }
-                            Err(_) => {}
-                        }
-                    }
-                }
-
+                // =========================
+                // ISSUE NAVIGATION
                 // =========================
                 // FOCUS SWITCH
                 // =========================
@@ -350,9 +343,6 @@ fn run_app(
                 // =========================
                 // ISSUE NAVIGATION
                 // =========================
-                (Focus::Issues, KeyCode::Char('j'), _) => state.next(),
-                (Focus::Issues, KeyCode::Char('k'), _) => state.prev(),
-
                 (Focus::Issues, KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_add(1);
                 }
@@ -360,6 +350,25 @@ fn run_app(
                 (Focus::Issues, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
                 }
+
+                // =========================
+                // SCROLLING (Ctrl+N / Ctrl+P)
+                // =========================
+                (_, KeyCode::Char('n'), KeyModifiers::CONTROL) => match state.active_pane {
+                    Pane::Left => state.next(),
+                    Pane::Right | Pane::Top => {
+                        state.desc_scroll = state.desc_scroll.saturating_add(1)
+                    }
+                    Pane::Bottom => {}
+                },
+
+                (_, KeyCode::Char('p'), KeyModifiers::CONTROL) => match state.active_pane {
+                    Pane::Left => state.prev(),
+                    Pane::Right | Pane::Top => {
+                        state.desc_scroll = state.desc_scroll.saturating_sub(1)
+                    }
+                    Pane::Bottom => {}
+                },
 
                 (Focus::Issues, KeyCode::Char('o'), modifiers) => {
                     if let Some(issue) = state.issues.get(state.selected) {
@@ -378,14 +387,6 @@ fn run_app(
                 // =========================
                 // DESCRIPTION FOCUS
                 // =========================
-                (Focus::Description, KeyCode::Char('j'), _) => {
-                    state.desc_scroll = state.desc_scroll.saturating_add(1);
-                }
-
-                (Focus::Description, KeyCode::Char('k'), _) => {
-                    state.desc_scroll = state.desc_scroll.saturating_sub(1);
-                }
-
                 (Focus::Description, KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_add(1);
                 }

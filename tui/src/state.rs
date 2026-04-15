@@ -11,12 +11,43 @@ pub struct AppState {
     pub editing_jql: bool,
     pub jira: JiraClient,
     pub focus: Focus,
+    pub active_pane: Pane,
+    pub focused_pane: Option<Pane>,
     pub show_help: bool,
+    pub help_scroll: u16,
     pub show_create_form: bool,
     pub create_form: CreateForm,
     pub show_transition_modal: bool,
     pub transitions: Vec<crate::jira::Transition>,
     pub transition_selected: usize,
+}
+
+#[derive(PartialEq, Clone, Copy)]
+pub enum Pane {
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+
+impl Pane {
+    pub fn next(self) -> Self {
+        match self {
+            Pane::Top => Pane::Left,
+            Pane::Left => Pane::Right,
+            Pane::Right => Pane::Bottom,
+            Pane::Bottom => Pane::Top,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Pane::Top => Pane::Bottom,
+            Pane::Left => Pane::Top,
+            Pane::Right => Pane::Left,
+            Pane::Bottom => Pane::Right,
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -45,7 +76,10 @@ impl AppState {
             editing_jql: false,
             jira,
             focus: Focus::Issues,
+            active_pane: Pane::Left,
+            focused_pane: None,
             show_help: false,
+            help_scroll: 0,
             show_create_form: false,
             create_form: CreateForm::new(default_project, default_issue_type),
             show_transition_modal: false,
