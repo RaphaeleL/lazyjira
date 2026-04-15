@@ -27,6 +27,11 @@ JQL Search:
   #          - Focus JQL input (clear mode)
   Esc        - Return to issues
   Enter      - Execute search
+  Arrow keys - Move cursor
+  Home/End   - Beginning/end of line
+  Ctrl+a/e   - Beginning/end of line
+  Ctrl+u     - Clear line
+  Delete     - Delete character
 
 Description Focus (full screen):
   j/k        - Scroll description up/down

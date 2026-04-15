@@ -23,7 +23,8 @@ use std::io;
 use std::process;
 
 pub fn reload_issues(state: &mut AppState) {
-    let issues = state.jira.search_issues(&state.jql);
+    let jql_str: String = state.jql.iter().collect();
+    let issues = state.jira.search_issues(&jql_str);
 
     state.issues = issues;
     state.selected = 0;
@@ -116,7 +117,8 @@ fn main() -> io::Result<()> {
                 (_, KeyCode::Char('#'), _) => {
                     state.focus = Focus::Jql;
                     state.editing_jql = true;
-                    state.jql = "".to_string();
+                    state.jql = vec![];
+                    state.jql_cursor = 0;
                 }
 
                 (_, KeyCode::Esc, _) => {
@@ -173,20 +175,54 @@ fn main() -> io::Result<()> {
                 }
 
                 // =========================
-                // JQL INPUT (APPEND ONLY)
+                // JQL INPUT
                 // =========================
+                (Focus::Jql, KeyCode::Char('a'), KeyModifiers::CONTROL) => {
+                    state.jql_cursor = 0;
+                }
+
+                (Focus::Jql, KeyCode::Char('e'), KeyModifiers::CONTROL) => {
+                    state.jql_cursor = state.jql.len();
+                }
+
+                (Focus::Jql, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
+                    state.jql.clear();
+                    state.jql_cursor = 0;
+                }
+
                 (Focus::Jql, KeyCode::Char(c), _) => {
-                    state.jql.push(c);
+                    state.jql.insert(state.jql_cursor, c);
+                    state.jql_cursor += 1;
                 }
 
                 (Focus::Jql, KeyCode::Backspace, _) => {
-                    state.jql.pop();
+                    if state.jql_cursor > 0 {
+                        state.jql_cursor -= 1;
+                        state.jql.remove(state.jql_cursor);
+                    }
                 }
 
-                // optional: clear line (Ctrl+u like shell)
-                // (Focus::Jql, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
-                //     state.jql.clear();
-                // }
+                (Focus::Jql, KeyCode::Delete, _) => {
+                    if state.jql_cursor < state.jql.len() {
+                        state.jql.remove(state.jql_cursor);
+                    }
+                }
+
+                (Focus::Jql, KeyCode::Left, _) => {
+                    state.jql_cursor = state.jql_cursor.saturating_sub(1);
+                }
+
+                (Focus::Jql, KeyCode::Right, _) => {
+                    state.jql_cursor = (state.jql_cursor + 1).min(state.jql.len());
+                }
+
+                (Focus::Jql, KeyCode::Home, _) => {
+                    state.jql_cursor = 0;
+                }
+
+                (Focus::Jql, KeyCode::End, _) => {
+                    state.jql_cursor = state.jql.len();
+                }
 
                 // =========================
                 // EXECUTE JQL

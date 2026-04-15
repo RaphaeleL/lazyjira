@@ -23,14 +23,15 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
         " JQL "
     };
 
-    let mut text = state.jql.clone();
+    let text: String = state.jql.iter().collect();
 
-    // show cursor
+    let mut display = text.clone();
     if is_active {
-        text.push('█');
+        let byte_pos = text.char_indices().nth(state.jql_cursor).map(|(i, _)| i).unwrap_or(text.len());
+        display.insert(byte_pos, '█');
     }
 
-    let input = Paragraph::new(Line::from(Span::styled(text, style)))
+    let input = Paragraph::new(Line::from(Span::styled(display, style)))
         .block(Block::default().borders(Borders::ALL).title(title));
 
     f.render_widget(input, area);
