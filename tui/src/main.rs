@@ -40,7 +40,7 @@ fn main() -> io::Result<()> {
     let cache_path_str = cache_path.to_str().unwrap();
     let issues = load_issues(&jira, cache_path_str);
 
-    let mut state = AppState::new(issues, jira);
+    let mut state = AppState::new(issues, jira, config.default_project.clone(), config.issue_type.clone());
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -85,9 +85,156 @@ fn main() -> io::Result<()> {
             if state.show_help {
                 crate::ui::help::draw_help(f, f.area());
             }
+
+            if state.show_create_form {
+                crate::ui::create_form::draw_create_form(f, f.area(), &state.create_form);
+            }
+
+            if state.show_transition_modal {
+                crate::ui::transition_modal::draw_transition_modal(f, f.area(), &state.transitions, state.transition_selected);
+            }
         })?;
 
         if let Event::Key(key) = event::read()? {
+            // Handle JQL input first
+            if state.focus == Focus::Jql && state.editing_jql {
+                match key.code {
+                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        state.jql_cursor = 0;
+                        continue;
+                    }
+                    KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        state.jql_cursor = state.jql.len();
+                        continue;
+                    }
+                    KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        state.jql.clear();
+                        state.jql_cursor = 0;
+                        continue;
+                    }
+                    KeyCode::Char(c) => {
+                        state.jql.insert(state.jql_cursor, c);
+                        state.jql_cursor += 1;
+                        continue;
+                    }
+                    KeyCode::Backspace => {
+                        if state.jql_cursor > 0 {
+                            state.jql_cursor -= 1;
+                            state.jql.remove(state.jql_cursor);
+                        }
+                        continue;
+                    }
+                    KeyCode::Delete => {
+                        if state.jql_cursor < state.jql.len() {
+                            state.jql.remove(state.jql_cursor);
+                        }
+                        continue;
+                    }
+                    KeyCode::Left => {
+                        state.jql_cursor = state.jql_cursor.saturating_sub(1);
+                        continue;
+                    }
+                    KeyCode::Right => {
+                        state.jql_cursor = (state.jql_cursor + 1).min(state.jql.len());
+                        continue;
+                    }
+                    KeyCode::Home => {
+                        state.jql_cursor = 0;
+                        continue;
+                    }
+                    KeyCode::End => {
+                        state.jql_cursor = state.jql.len();
+                        continue;
+                    }
+                    KeyCode::Enter => {
+                        reload_issues(&mut state);
+                        state.focus = Focus::Issues;
+                        state.editing_jql = false;
+                        continue;
+                    }
+                    KeyCode::Esc => {
+                        state.focus = Focus::Issues;
+                        state.editing_jql = false;
+                        continue;
+                    }
+                    _ => continue,
+                }
+            }
+
+            // Handle create form input first
+            if state.show_create_form {
+                match key.code {
+                    KeyCode::Tab => {
+                        state.create_form.next_field();
+                        continue;
+                    }
+                    KeyCode::BackTab => {
+                        state.create_form.prev_field();
+                        continue;
+                    }
+                    KeyCode::Char(c) => {
+                        state.create_form.get_current_field_mut().push(c);
+                        continue;
+                    }
+                    KeyCode::Backspace => {
+                        state.create_form.get_current_field_mut().pop();
+                        continue;
+                    }
+                    KeyCode::Enter => {
+                        if !state.create_form.summary.is_empty() {
+                            let _ = state.jira.create_issue(
+                                &state.create_form.summary,
+                                Some(state.create_form.project.clone()),
+                                if state.create_form.component.is_empty() { None } else { Some(state.create_form.component.clone()) },
+                                Some(state.create_form.description.clone()),
+                                Some(state.create_form.issue_type.clone()),
+                            );
+                            state.show_create_form = false;
+                            reload_issues(&mut state);
+                        }
+                        continue;
+                    }
+                    KeyCode::Esc => {
+                        state.show_create_form = false;
+                        continue;
+                    }
+                    _ => continue,
+                }
+            }
+
+            // Handle transition modal input
+            if state.show_transition_modal {
+                match key.code {
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        state.transition_selected = (state.transition_selected + 1) % state.transitions.len();
+                        continue;
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        if state.transition_selected > 0 {
+                            state.transition_selected -= 1;
+                        } else {
+                            state.transition_selected = state.transitions.len() - 1;
+                        }
+                        continue;
+                    }
+                    KeyCode::Enter => {
+                        if let Some(issue) = state.selected() {
+                            if let Some(transition) = state.transitions.get(state.transition_selected) {
+                                let _ = state.jira.transition_issue(&issue.key, &transition.id);
+                                state.show_transition_modal = false;
+                                reload_issues(&mut state);
+                            }
+                        }
+                        continue;
+                    }
+                    KeyCode::Esc => {
+                        state.show_transition_modal = false;
+                        continue;
+                    }
+                    _ => continue,
+                }
+            }
+
             match (&state.focus, key.code, key.modifiers) {
 
                 // =========================
@@ -99,12 +246,31 @@ fn main() -> io::Result<()> {
                     state.show_help = !state.show_help;
                 }
 
+                (_, KeyCode::Char('n'), _) => {
+                    state.show_create_form = true;
+                }
+
                 (_, KeyCode::Char('f'), _) => {
                     state.focus = match state.focus {
                         Focus::Issues => Focus::Description,
                         Focus::Description => Focus::Issues,
                         Focus::Jql => Focus::Issues,
                     };
+                }
+
+                (Focus::Issues, KeyCode::Char('u'), modifiers) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                    if let Some(issue) = state.selected() {
+                        match state.jira.get_transitions(&issue.key) {
+                            Ok(transitions) => {
+                                if !transitions.is_empty() {
+                                    state.transitions = transitions;
+                                    state.transition_selected = 0;
+                                    state.show_transition_modal = true;
+                                }
+                            }
+                            Err(_) => {}
+                        }
+                    }
                 }
 
                 // =========================
@@ -136,11 +302,11 @@ fn main() -> io::Result<()> {
                 (Focus::Issues, KeyCode::Char('j'), _) => state.next(),
                 (Focus::Issues, KeyCode::Char('k'), _) => state.prev(),
 
-                (Focus::Issues, KeyCode::Char('d'), _) => {
+                (Focus::Issues, KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_add(1);
                 }
 
-                (Focus::Issues, KeyCode::Char('u'), _) => {
+                (Focus::Issues, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
                 }
 
@@ -166,75 +332,23 @@ fn main() -> io::Result<()> {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
                 }
 
-                (Focus::Description, KeyCode::Char('d'), _) => {
+                (Focus::Description, KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_add(1);
                 }
 
-                (Focus::Description, KeyCode::Char('u'), _) => {
+                (Focus::Description, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
                 }
 
                 // =========================
-                // JQL INPUT
+                // JQL INPUT (handled above in dedicated block)
                 // =========================
-                (Focus::Jql, KeyCode::Char('a'), KeyModifiers::CONTROL) => {
-                    state.jql_cursor = 0;
-                }
-
-                (Focus::Jql, KeyCode::Char('e'), KeyModifiers::CONTROL) => {
-                    state.jql_cursor = state.jql.len();
-                }
-
-                (Focus::Jql, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
-                    state.jql.clear();
-                    state.jql_cursor = 0;
-                }
-
-                (Focus::Jql, KeyCode::Char(c), _) => {
-                    state.jql.insert(state.jql_cursor, c);
-                    state.jql_cursor += 1;
-                }
-
-                (Focus::Jql, KeyCode::Backspace, _) => {
-                    if state.jql_cursor > 0 {
-                        state.jql_cursor -= 1;
-                        state.jql.remove(state.jql_cursor);
-                    }
-                }
-
-                (Focus::Jql, KeyCode::Delete, _) => {
-                    if state.jql_cursor < state.jql.len() {
-                        state.jql.remove(state.jql_cursor);
-                    }
-                }
-
-                (Focus::Jql, KeyCode::Left, _) => {
-                    state.jql_cursor = state.jql_cursor.saturating_sub(1);
-                }
-
-                (Focus::Jql, KeyCode::Right, _) => {
-                    state.jql_cursor = (state.jql_cursor + 1).min(state.jql.len());
-                }
-
-                (Focus::Jql, KeyCode::Home, _) => {
-                    state.jql_cursor = 0;
-                }
-
-                (Focus::Jql, KeyCode::End, _) => {
-                    state.jql_cursor = state.jql.len();
-                }
 
                 // =========================
-                // EXECUTE JQL
+                // EXECUTE JQL (handled above in dedicated block)
                 // =========================
-                (Focus::Jql, KeyCode::Enter, _) => {
-                    reload_issues(&mut state);
-                    state.focus = Focus::Issues;
-                    state.editing_jql = false;
-                }
 
-                _ => {}
-            }
+                _ => {}            }
         }
     }
 

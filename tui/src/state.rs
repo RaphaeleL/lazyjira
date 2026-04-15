@@ -12,8 +12,14 @@ pub struct AppState {
     pub jira: JiraClient,
     pub focus: Focus,
     pub show_help: bool,
+    pub show_create_form: bool,
+    pub create_form: CreateForm,
+    pub show_transition_modal: bool,
+    pub transitions: Vec<crate::jira::Transition>,
+    pub transition_selected: usize,
 }
 
+#[derive(PartialEq)]
 pub enum Focus {
     Issues,
     Jql,
@@ -21,7 +27,7 @@ pub enum Focus {
 }
 
 impl AppState {
-    pub fn new(issues: Vec<Issue>, jira: JiraClient) -> Self {
+    pub fn new(issues: Vec<Issue>, jira: JiraClient, default_project: String, default_issue_type: String) -> Self {
         Self {
             issues,
             selected: 0,
@@ -33,6 +39,11 @@ impl AppState {
             jira,
             focus: Focus::Issues,
             show_help: false,
+            show_create_form: false,
+            create_form: CreateForm::new(default_project, default_issue_type),
+            show_transition_modal: false,
+            transitions: vec![],
+            transition_selected: 0,
         }
     }
     
@@ -111,5 +122,65 @@ impl AppState {
             .and_then(|i| i.fields.reporter.as_ref())
             .and_then(|u| u.display_name.as_deref())
     }
+}
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FormField {
+    Summary,
+    Description,
+    Project,
+    Component,
+    IssueType,
+}
+
+pub struct CreateForm {
+    pub summary: String,
+    pub description: String,
+    pub project: String,
+    pub component: String,
+    pub issue_type: String,
+    pub focused_field: FormField,
+}
+
+impl CreateForm {
+    pub fn new(default_project: String, default_issue_type: String) -> Self {
+        Self {
+            summary: String::new(),
+            description: String::new(),
+            project: default_project,
+            component: String::new(),
+            issue_type: default_issue_type,
+            focused_field: FormField::Summary,
+        }
+    }
+
+    pub fn next_field(&mut self) {
+        self.focused_field = match self.focused_field {
+            FormField::Summary => FormField::Description,
+            FormField::Description => FormField::Project,
+            FormField::Project => FormField::Component,
+            FormField::Component => FormField::IssueType,
+            FormField::IssueType => FormField::Summary,
+        };
+    }
+
+    pub fn prev_field(&mut self) {
+        self.focused_field = match self.focused_field {
+            FormField::Summary => FormField::IssueType,
+            FormField::Description => FormField::Summary,
+            FormField::Project => FormField::Description,
+            FormField::Component => FormField::Project,
+            FormField::IssueType => FormField::Component,
+        };
+    }
+
+    pub fn get_current_field_mut(&mut self) -> &mut String {
+        match self.focused_field {
+            FormField::Summary => &mut self.summary,
+            FormField::Description => &mut self.description,
+            FormField::Project => &mut self.project,
+            FormField::Component => &mut self.component,
+            FormField::IssueType => &mut self.issue_type,
+        }
+    }
 }

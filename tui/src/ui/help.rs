@@ -6,21 +6,19 @@ use ratatui::{
 };
 
 pub fn draw_help(f: &mut Frame, area: Rect) {
-    let help_text = r#"
-Keybindings:
-
-Global:
+    let help_text = r#"Global:
   q          - Quit application
   ?          - Toggle this help
   f          - Toggle full screen description view
+  n          - Create new issue
 
 Issue Navigation (when focused on issues):
   j          - Next issue
   k          - Previous issue
-  d          - Scroll description down
-  u          - Scroll description up
+  u          - Update issue status
   o          - Open issue in browser
   Ctrl+o     - Copy issue key to clipboard
+  Ctrl+d/u   - Scroll description down/up
 
 JQL Search:
   @          - Focus JQL input (append mode)
@@ -35,7 +33,12 @@ JQL Search:
 
 Description Focus (full screen):
   j/k        - Scroll description up/down
-  d/u        - Scroll description up/down
+  Ctrl+d/u   - Scroll description down/up
+
+Transition Modal:
+  j/k        - Select previous/next status
+  Enter      - Apply transition
+  Esc        - Cancel
 
 Press Esc to close this help.
 "#;
