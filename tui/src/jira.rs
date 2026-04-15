@@ -1,9 +1,10 @@
-use reqwest::blocking::Client;
 use crate::config::Config;
+use crate::constants::DEV_MODE;
 use crate::model::issue::Issue;
-use std::collections::HashMap;
-use serde_json::json;
+use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::collections::HashMap;
 
 pub struct JiraClient {
     client: Client,
@@ -21,6 +22,10 @@ impl JiraClient {
     }
 
     pub fn search(&self, jql: &str) -> serde_json::Value {
+        if DEV_MODE {
+            return self.mock_search(jql);
+        }
+
         let url = format!(
             "{}/rest/api/2/search?jql={}",
             self.config.jira_url,
@@ -35,6 +40,122 @@ impl JiraClient {
             .unwrap()
             .json()
             .unwrap()
+    }
+
+    pub fn mock_search(&self, jql: &str) -> serde_json::Value {
+        let issues = vec![
+            Issue {
+                key: "PROJ-101".to_string(),
+                fields: crate::model::issue::Fields {
+                    summary: "Implement user authentication".to_string(),
+                    description: Some(
+                        "Add login and logout functionality with JWT tokens".to_string(),
+                    ),
+                    status: crate::model::issue::Status {
+                        name: "In Progress".to_string(),
+                    },
+                    assignee: Some(crate::model::issue::User {
+                        display_name: Some("John Doe".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                    reporter: Some(crate::model::issue::User {
+                        display_name: Some("Jane Smith".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                },
+            },
+            Issue {
+                key: "PROJ-102".to_string(),
+                fields: crate::model::issue::Fields {
+                    summary: "Fix navigation bug on mobile".to_string(),
+                    description: Some(
+                        "The hamburger menu doesn't close when clicking outside".to_string(),
+                    ),
+                    status: crate::model::issue::Status {
+                        name: "To Do".to_string(),
+                    },
+                    assignee: Some(crate::model::issue::User {
+                        display_name: Some("Alice Johnson".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                    reporter: Some(crate::model::issue::User {
+                        display_name: Some("Bob Wilson".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                },
+            },
+            Issue {
+                key: "PROJ-103".to_string(),
+                fields: crate::model::issue::Fields {
+                    summary: "Add dark mode support".to_string(),
+                    description: Some(
+                        "Implement theme switching with system preference detection".to_string(),
+                    ),
+                    status: crate::model::issue::Status {
+                        name: "Done".to_string(),
+                    },
+                    assignee: Some(crate::model::issue::User {
+                        display_name: Some("John Doe".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                    reporter: Some(crate::model::issue::User {
+                        display_name: Some("Jane Smith".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                },
+            },
+            Issue {
+                key: "PROJ-104".to_string(),
+                fields: crate::model::issue::Fields {
+                    summary: "Update dependencies".to_string(),
+                    description: Some("Upgrade all npm packages to latest versions".to_string()),
+                    status: crate::model::issue::Status {
+                        name: "In Progress".to_string(),
+                    },
+                    assignee: Some(crate::model::issue::User {
+                        display_name: Some("Charlie Brown".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                    reporter: Some(crate::model::issue::User {
+                        display_name: Some("John Doe".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                },
+            },
+            Issue {
+                key: "PROJ-105".to_string(),
+                fields: crate::model::issue::Fields {
+                    summary: "Write unit tests for API endpoints".to_string(),
+                    description: Some("Add test coverage for all REST API endpoints".to_string()),
+                    status: crate::model::issue::Status {
+                        name: "To Do".to_string(),
+                    },
+                    assignee: None,
+                    reporter: Some(crate::model::issue::User {
+                        display_name: Some("Alice Johnson".to_string()),
+                        name: None,
+                        email_address: None,
+                    }),
+                },
+            },
+        ];
+
+        let issues_json: Vec<serde_json::Value> = issues
+            .into_iter()
+            .map(|i| serde_json::to_value(i).unwrap())
+            .collect();
+        serde_json::json!({
+            "issues": issues_json,
+            "total": issues_json.len()
+        })
     }
 
     pub fn search_issues(&self, jql: &str) -> Vec<Issue> {
@@ -60,6 +181,10 @@ impl JiraClient {
         description: Option<String>,
         issue_type: Option<String>,
     ) -> Result<String, String> {
+        if DEV_MODE {
+            return Ok(format!("Created {} in DEV_MODE", summary));
+        }
+
         let project = project.unwrap_or_else(|| self.config.default_project.clone());
         let description = description.unwrap_or_default();
         let issue_type = issue_type.unwrap_or_else(|| self.config.issue_type.clone());
@@ -79,12 +204,14 @@ impl JiraClient {
         let payload = json!({ "fields": fields });
         let url = format!("{}/rest/api/2/issue", self.config.jira_url);
 
-        match self.client
+        match self
+            .client
             .post(&url)
             .header("Authorization", self.auth_header())
             .header("Content-Type", "application/json")
             .json(&payload)
-            .send() {
+            .send()
+        {
             Ok(resp) => {
                 if resp.status().is_success() {
                     resp.text().map_err(|e| e.to_string())
@@ -97,13 +224,35 @@ impl JiraClient {
     }
 
     pub fn get_transitions(&self, issue_key: &str) -> Result<Vec<Transition>, String> {
-        let url = format!("{}/rest/api/2/issue/{}/transitions", self.config.jira_url, issue_key);
-        
-        match self.client
+        if DEV_MODE {
+            return Ok(vec![
+                Transition {
+                    id: "11".to_string(),
+                    name: "To Do".to_string(),
+                },
+                Transition {
+                    id: "21".to_string(),
+                    name: "In Progress".to_string(),
+                },
+                Transition {
+                    id: "31".to_string(),
+                    name: "Done".to_string(),
+                },
+            ]);
+        }
+
+        let url = format!(
+            "{}/rest/api/2/issue/{}/transitions",
+            self.config.jira_url, issue_key
+        );
+
+        match self
+            .client
             .get(&url)
             .header("Authorization", self.auth_header())
             .header("Content-Type", "application/json")
-            .send() {
+            .send()
+        {
             Ok(resp) => {
                 if resp.status().is_success() {
                     match resp.json::<TransitionResponse>() {
@@ -119,15 +268,24 @@ impl JiraClient {
     }
 
     pub fn transition_issue(&self, issue_key: &str, transition_id: &str) -> Result<(), String> {
-        let url = format!("{}/rest/api/2/issue/{}/transitions", self.config.jira_url, issue_key);
+        if DEV_MODE {
+            return Ok(());
+        }
+
+        let url = format!(
+            "{}/rest/api/2/issue/{}/transitions",
+            self.config.jira_url, issue_key
+        );
         let payload = json!({ "transition": { "id": transition_id } });
 
-        match self.client
+        match self
+            .client
             .post(&url)
             .header("Authorization", self.auth_header())
             .header("Content-Type", "application/json")
             .json(&payload)
-            .send() {
+            .send()
+        {
             Ok(resp) => {
                 if resp.status().is_success() {
                     Ok(())

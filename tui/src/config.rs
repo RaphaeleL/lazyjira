@@ -37,6 +37,15 @@ impl Config {
         })
     }
 
+    pub fn dev_config() -> Self {
+        Self {
+            token: "dev_token".to_string(),
+            jira_url: "https://dev.atlassian.net".to_string(),
+            default_project: "PROJ".to_string(),
+            issue_type: "10001".to_string(),
+        }
+    }
+
     pub fn get_config_dir() -> PathBuf {
         let home = env::home_dir().unwrap_or_else(|| PathBuf::from("."));
 

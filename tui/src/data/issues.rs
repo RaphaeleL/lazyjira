@@ -1,5 +1,8 @@
-use crate::{jira::JiraClient, cache::{save_cache, load_cache}};
 use crate::model::issue::Issue;
+use crate::{
+    cache::{load_cache, save_cache},
+    jira::JiraClient,
+};
 
 pub fn load_issues(jira: &JiraClient, cache_path: &str) -> Vec<Issue> {
     let jql = "assignee = currentUser() ORDER BY updated DESC";
@@ -8,8 +11,7 @@ pub fn load_issues(jira: &JiraClient, cache_path: &str) -> Vec<Issue> {
 
     save_cache(cache_path, &data);
 
-    let issues: Vec<Issue> =
-        serde_json::from_value(data["issues"].clone()).unwrap_or_default();
+    let issues: Vec<Issue> = serde_json::from_value(data["issues"].clone()).unwrap_or_default();
 
     issues
 }

@@ -1,24 +1,26 @@
-mod layout;
-mod state;
-mod model;
-mod jira;
 mod cache;
-mod data;
 mod config;
 mod constants;
+mod data;
+mod jira;
+mod layout;
+mod model;
+mod state;
 mod ui;
 
 use config::Config;
-use jira::JiraClient;
-use state::{AppState, Focus};
+use constants::DEV_MODE;
 use data::issues::load_issues;
+use jira::JiraClient;
 
-use ratatui::{backend::CrosstermBackend, Terminal};
+use state::{AppState, Focus};
+
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
-    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::process;
 
@@ -33,6 +35,10 @@ pub fn reload_issues(state: &mut AppState) {
 }
 
 fn main() -> io::Result<()> {
+    if DEV_MODE {
+        return run_dev_mode();
+    }
+
     let config = Config::load().expect("Failed to load config. Please run 'jira init' first.");
     let jira = JiraClient::new(config.clone());
 
@@ -40,7 +46,12 @@ fn main() -> io::Result<()> {
     let cache_path_str = cache_path.to_str().unwrap();
     let issues = load_issues(&jira, cache_path_str);
 
-    let mut state = AppState::new(issues, jira, config.default_project.clone(), config.issue_type.clone());
+    let mut state = AppState::new(
+        issues,
+        jira,
+        config.default_project.clone(),
+        config.issue_type.clone(),
+    );
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -48,6 +59,33 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    run_app(&mut terminal, &mut state)
+}
+
+fn run_dev_mode() -> io::Result<()> {
+    let config = Config::dev_config();
+    let jira = JiraClient::new(config.clone());
+    let issues = jira.search_issues("assignee = currentUser() ORDER BY updated DESC");
+    let mut state = AppState::new(
+        issues,
+        jira,
+        config.default_project.clone(),
+        config.issue_type.clone(),
+    );
+
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    run_app(&mut terminal, &mut state)
+}
+
+fn run_app(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    mut state: &mut AppState,
+) -> io::Result<()> {
     loop {
         terminal.draw(|f| {
             let (top_height, bottom_height) = match state.focus {
@@ -91,7 +129,12 @@ fn main() -> io::Result<()> {
             }
 
             if state.show_transition_modal {
-                crate::ui::transition_modal::draw_transition_modal(f, f.area(), &state.transitions, state.transition_selected);
+                crate::ui::transition_modal::draw_transition_modal(
+                    f,
+                    f.area(),
+                    &state.transitions,
+                    state.transition_selected,
+                );
             }
         })?;
 
@@ -185,7 +228,11 @@ fn main() -> io::Result<()> {
                             let _ = state.jira.create_issue(
                                 &state.create_form.summary,
                                 Some(state.create_form.project.clone()),
-                                if state.create_form.component.is_empty() { None } else { Some(state.create_form.component.clone()) },
+                                if state.create_form.component.is_empty() {
+                                    None
+                                } else {
+                                    Some(state.create_form.component.clone())
+                                },
                                 Some(state.create_form.description.clone()),
                                 Some(state.create_form.issue_type.clone()),
                             );
@@ -206,7 +253,8 @@ fn main() -> io::Result<()> {
             if state.show_transition_modal {
                 match key.code {
                     KeyCode::Char('j') | KeyCode::Down => {
-                        state.transition_selected = (state.transition_selected + 1) % state.transitions.len();
+                        state.transition_selected =
+                            (state.transition_selected + 1) % state.transitions.len();
                         continue;
                     }
                     KeyCode::Char('k') | KeyCode::Up => {
@@ -219,7 +267,9 @@ fn main() -> io::Result<()> {
                     }
                     KeyCode::Enter => {
                         if let Some(issue) = state.selected() {
-                            if let Some(transition) = state.transitions.get(state.transition_selected) {
+                            if let Some(transition) =
+                                state.transitions.get(state.transition_selected)
+                            {
                                 let _ = state.jira.transition_issue(&issue.key, &transition.id);
                                 state.show_transition_modal = false;
                                 reload_issues(&mut state);
@@ -236,7 +286,6 @@ fn main() -> io::Result<()> {
             }
 
             match (&state.focus, key.code, key.modifiers) {
-
                 // =========================
                 // EXIT
                 // =========================
@@ -258,7 +307,9 @@ fn main() -> io::Result<()> {
                     };
                 }
 
-                (Focus::Issues, KeyCode::Char('u'), modifiers) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                (Focus::Issues, KeyCode::Char('u'), modifiers)
+                    if !modifiers.contains(KeyModifiers::CONTROL) =>
+                {
                     if let Some(issue) = state.selected() {
                         match state.jira.get_transitions(&issue.key) {
                             Ok(transitions) => {
@@ -313,7 +364,10 @@ fn main() -> io::Result<()> {
                 (Focus::Issues, KeyCode::Char('o'), modifiers) => {
                     if let Some(issue) = state.issues.get(state.selected) {
                         if modifiers.contains(KeyModifiers::CONTROL) {
-                            let _ = process::Command::new("sh").arg("-c").arg(format!("echo '{}' | pbcopy", issue.key)).spawn();
+                            let _ = process::Command::new("sh")
+                                .arg("-c")
+                                .arg(format!("echo '{}' | pbcopy", issue.key))
+                                .spawn();
                         } else {
                             let url = format!("{}/browse/{}", state.jira.jira_url(), issue.key);
                             let _ = process::Command::new("open").arg(&url).spawn();
@@ -347,8 +401,8 @@ fn main() -> io::Result<()> {
                 // =========================
                 // EXECUTE JQL (handled above in dedicated block)
                 // =========================
-
-                _ => {}            }
+                _ => {}
+            }
         }
     }
 

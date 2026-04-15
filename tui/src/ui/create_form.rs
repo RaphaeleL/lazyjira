@@ -25,39 +25,69 @@ pub fn draw_create_form(f: &mut Frame, area: Rect, form: &crate::state::CreateFo
         ])
         .split(popup_area);
 
-    let block = Block::default()
-        .title("Create Issue")
-        .borders(Borders::ALL);
+    let block = Block::default().title("Create Issue").borders(Borders::ALL);
     let title_widget = Paragraph::new("Create New Issue")
         .block(block)
         .alignment(Alignment::Center);
     f.render_widget(title_widget, chunks[0]);
 
     // Summary field
-    draw_form_field(f, chunks[1], "Summary", &form.summary, form.focused_field == FormField::Summary);
+    draw_form_field(
+        f,
+        chunks[1],
+        "Summary",
+        &form.summary,
+        form.focused_field == FormField::Summary,
+    );
 
     // Description field
-    draw_form_field(f, chunks[2], "Description", &form.description, form.focused_field == FormField::Description);
+    draw_form_field(
+        f,
+        chunks[2],
+        "Description",
+        &form.description,
+        form.focused_field == FormField::Description,
+    );
 
     // Project field
-    draw_form_field(f, chunks[3], "Project", &form.project, form.focused_field == FormField::Project);
+    draw_form_field(
+        f,
+        chunks[3],
+        "Project",
+        &form.project,
+        form.focused_field == FormField::Project,
+    );
 
     // Component field
-    draw_form_field(f, chunks[4], "Component", &form.component, form.focused_field == FormField::Component);
+    draw_form_field(
+        f,
+        chunks[4],
+        "Component",
+        &form.component,
+        form.focused_field == FormField::Component,
+    );
 
     // Issue Type field
-    draw_form_field(f, chunks[5], "Type", &form.issue_type, form.focused_field == FormField::IssueType);
+    draw_form_field(
+        f,
+        chunks[5],
+        "Type",
+        &form.issue_type,
+        form.focused_field == FormField::IssueType,
+    );
 
     // Instructions
-    let instructions = Paragraph::new(Line::from(vec![
-        Span::raw("Tab: Next | Shift+Tab: Prev | Enter: Submit | Esc: Cancel"),
-    ]));
+    let instructions = Paragraph::new(Line::from(vec![Span::raw(
+        "Tab: Next | Shift+Tab: Prev | Enter: Submit | Esc: Cancel",
+    )]));
     f.render_widget(instructions, chunks[6]);
 }
 
 fn draw_form_field(f: &mut Frame, area: Rect, label: &str, value: &str, is_focused: bool) {
     let style = if is_focused {
-        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
@@ -75,10 +105,12 @@ fn draw_form_field(f: &mut Frame, area: Rect, label: &str, value: &str, is_focus
     };
 
     let widget = Paragraph::new(display)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .title(format!(" {} ", label))
-            .border_style(border_style))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(" {} ", label))
+                .border_style(border_style),
+        )
         .style(style);
 
     f.render_widget(widget, area);
