@@ -1,3 +1,11 @@
+.PHONY: cli 
+cli: 
+	cd cli && cargo run --release -- mine
+
+.PHONY: tui
+tui: 
+	cd tui && cargo run --release	
+
 .PHONY: clean 
 clean: 
 	rm -rf cli/target || true
