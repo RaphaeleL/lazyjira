@@ -10,11 +10,11 @@ Features may be incomplete, unstable, or subject to change. Please use with caut
 
 ### CLI Tool (`jira`)
 - **View Issues**: Show your assigned issues, issues by user, or search with JQL
-- **Interactive Selection**: Use `fzf` for interactive issue picking
 - **Create Issues**: Create new tickets with custom fields
 - **Update Status**: Transition tickets between states (todo/start/done/review/waiting)
 - **Show Details**: Display comprehensive ticket information
 - **Component Search**: Find issues by component
+- **JQL History**: View and reuse previous JQL queries
 - **Caching**: Automatic caching of issue data for faster access
 
 ### TUI Tool (`lazyjira`)
@@ -28,7 +28,6 @@ Features may be incomplete, unstable, or subject to change. Please use with caut
 ### Prerequisites
 
 - Rust (latest stable)
-- `fzf` (for CLI interactive selection)
 
 ### Build and Install
 
@@ -90,8 +89,8 @@ jira mine
 # Show issues assigned to specific users
 jira from username1,username2
 
-# Interactive issue picker (requires fzf)
-jira pick
+# Show JQL history
+jira history
 
 # Search with JQL
 jira search 'project = MYPROJECT AND status != Done'
@@ -184,16 +183,4 @@ The CLI will show available transitions. Use the appropriate command:
 
 ```bash
 jira update start TICKET-123
-```
-
-### fzf not found
-
-Install fzf for interactive selection:
-
-```bash
-# macOS
-brew install fzf
-
-# Ubuntu/Debian
-apt install fzf
 ```

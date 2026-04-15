@@ -7,7 +7,6 @@ Thank you for your interest in contributing to LazyJira! This document provides 
 ### Prerequisites
 
 - Rust (latest stable version recommended)
-- `fzf` (for CLI interactive features)
 - Git
 
 ### Development Setup
