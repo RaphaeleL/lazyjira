@@ -12,6 +12,7 @@ Keybindings:
 Global:
   q          - Quit application
   ?          - Toggle this help
+  f          - Toggle full screen description view
 
 Issue Navigation (when focused on issues):
   j          - Next issue
@@ -19,12 +20,17 @@ Issue Navigation (when focused on issues):
   d          - Scroll description down
   u          - Scroll description up
   o          - Open issue in browser
+  Ctrl+o     - Copy issue key to clipboard
 
 JQL Search:
   @          - Focus JQL input (append mode)
   #          - Focus JQL input (clear mode)
   Esc        - Return to issues
   Enter      - Execute search
+
+Description Focus (full screen):
+  j/k        - Scroll description up/down
+  d/u        - Scroll description up/down
 
 Press Esc to close this help.
 "#;

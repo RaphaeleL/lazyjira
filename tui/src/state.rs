@@ -17,6 +17,7 @@ pub struct AppState {
 pub enum Focus {
     Issues,
     Jql,
+    Description,
 }
 
 impl AppState {

@@ -15,7 +15,7 @@ use data::issues::load_issues;
 
 use ratatui::{backend::CrosstermBackend, Terminal};
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event, KeyCode, KeyModifiers},
     execute,
     terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -49,20 +49,30 @@ fn main() -> io::Result<()> {
 
     loop {
         terminal.draw(|f| {
+            let (top_height, bottom_height) = match state.focus {
+                Focus::Description => (0, 0),
+                _ => (3, 3),
+            };
+
             let chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
                 .constraints([
-                    ratatui::layout::Constraint::Length(3),
+                    ratatui::layout::Constraint::Length(top_height),
                     ratatui::layout::Constraint::Min(0),
-                    ratatui::layout::Constraint::Length(3),
+                    ratatui::layout::Constraint::Length(bottom_height),
                 ])
                 .split(f.area());
+
+            let (left_percent, right_percent) = match state.focus {
+                Focus::Description => (0, 100),
+                _ => (30, 70),
+            };
 
             let middle = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Horizontal)
                 .constraints([
-                    ratatui::layout::Constraint::Percentage(30),
-                    ratatui::layout::Constraint::Percentage(70),
+                    ratatui::layout::Constraint::Percentage(left_percent),
+                    ratatui::layout::Constraint::Percentage(right_percent),
                 ])
                 .split(chunks[1]);
 
@@ -86,6 +96,14 @@ fn main() -> io::Result<()> {
 
                 (_, KeyCode::Char('?'), _) => {
                     state.show_help = !state.show_help;
+                }
+
+                (_, KeyCode::Char('f'), _) => {
+                    state.focus = match state.focus {
+                        Focus::Issues => Focus::Description,
+                        Focus::Description => Focus::Issues,
+                        Focus::Jql => Focus::Issues,
+                    };
                 }
 
                 // =========================
@@ -124,11 +142,34 @@ fn main() -> io::Result<()> {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
                 }
 
-                (Focus::Issues, KeyCode::Char('o'), _) => {
+                (Focus::Issues, KeyCode::Char('o'), modifiers) => {
                     if let Some(issue) = state.issues.get(state.selected) {
-                        let url = format!("{}/browse/{}", state.jira.jira_url(), issue.key);
-                        let _ = process::Command::new("open").arg(&url).spawn();
+                        if modifiers.contains(KeyModifiers::CONTROL) {
+                            let _ = process::Command::new("sh").arg("-c").arg(format!("echo '{}' | pbcopy", issue.key)).spawn();
+                        } else {
+                            let url = format!("{}/browse/{}", state.jira.jira_url(), issue.key);
+                            let _ = process::Command::new("open").arg(&url).spawn();
+                        }
                     }
+                }
+
+                // =========================
+                // DESCRIPTION FOCUS
+                // =========================
+                (Focus::Description, KeyCode::Char('j'), _) => {
+                    state.desc_scroll = state.desc_scroll.saturating_add(1);
+                }
+
+                (Focus::Description, KeyCode::Char('k'), _) => {
+                    state.desc_scroll = state.desc_scroll.saturating_sub(1);
+                }
+
+                (Focus::Description, KeyCode::Char('d'), _) => {
+                    state.desc_scroll = state.desc_scroll.saturating_add(1);
+                }
+
+                (Focus::Description, KeyCode::Char('u'), _) => {
+                    state.desc_scroll = state.desc_scroll.saturating_sub(1);
                 }
 
                 // =========================
