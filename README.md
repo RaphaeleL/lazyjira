@@ -55,7 +55,11 @@ Make sure `~/.local/bin` is in your PATH.
 
 ## Configuration
 
-Both tools share the same configuration file located at `~/Library/Application Support/jira.lazyjira.LazyJira/env`.
+Both tools share the same configuration file. The location depends on your operating system:
+
+- **macOS**: `~/Library/Application Support/LazyJira/env`
+- **Linux**: `~/.config/lazyjira/env`
+- **Windows**: `%APPDATA%\LazyJira\env`
 
 ### Initial Setup
 

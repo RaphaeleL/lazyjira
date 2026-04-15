@@ -133,7 +133,10 @@ lazyjira/
 
 ### Configuration
 
-- Both CLI and TUI share the same config file at `~/Library/Application Support/jira.lazyjira.LazyJira/env`
+- Both CLI and TUI share the same config file. The location depends on your operating system:
+  - **macOS**: `~/Library/Application Support/LazyJira/env`
+  - **Linux**: `~/.config/lazyjira/env`
+  - **Windows**: `%APPDATA%\LazyJira\env`
 - Use the `Config` struct for configuration management
 - Validate configuration on load
 
