@@ -193,19 +193,12 @@ fn run_app(
                         reload_issues(&mut state);
                         state.focus = Focus::Issues;
                         state.editing_jql = false;
+                        state.active_pane = Pane::Left;
                         continue;
                     }
                     KeyCode::Esc => {
                         state.focus = Focus::Issues;
                         state.editing_jql = false;
-                        continue;
-                    }
-                    KeyCode::Tab => {
-                        state.active_pane = state.active_pane.next();
-                        continue;
-                    }
-                    KeyCode::BackTab => {
-                        state.active_pane = state.active_pane.prev();
                         continue;
                     }
                     _ => continue,
@@ -273,6 +266,19 @@ fn run_app(
                         }
                         continue;
                     }
+                    KeyCode::Char('n') => {
+                        state.transition_selected =
+                            (state.transition_selected + 1) % state.transitions.len();
+                        continue;
+                    }
+                    KeyCode::Char('p') => {
+                        if state.transition_selected > 0 {
+                            state.transition_selected -= 1;
+                        } else {
+                            state.transition_selected = state.transitions.len() - 1;
+                        }
+                        continue;
+                    }
                     KeyCode::Enter => {
                         if let Some(issue) = state.selected() {
                             if let Some(transition) =
@@ -316,20 +322,36 @@ fn run_app(
                 }
 
                 // =========================
+                // GLOBAL PANE CYCLING
+                // =========================
+                (_, KeyCode::Tab, _) => {
+                    state.active_pane = state.active_pane.next();
+                    state.focused_pane = None;
+
+                    // auto-enter JQL append mode when switching to bottom pane
+                    if state.active_pane == Pane::Bottom {
+                        state.focus = Focus::Jql;
+                        state.editing_jql = true;
+                        state.jql_cursor = state.jql.len();
+                    }
+                }
+                (_, KeyCode::BackTab, _) => {
+                    state.active_pane = state.active_pane.prev();
+                    state.focused_pane = None;
+
+                    // auto-enter JQL append mode when switching to bottom pane
+                    if state.active_pane == Pane::Bottom {
+                        state.focus = Focus::Jql;
+                        state.editing_jql = true;
+                        state.jql_cursor = state.jql.len();
+                    }
+                }
+
+                // =========================
                 // ISSUE NAVIGATION
                 // =========================
                 // FOCUS SWITCH
                 // =========================
-                (_, KeyCode::Char('@'), _) => {
-                    state.focus = Focus::Jql;
-                    state.editing_jql = true;
-                }
-                (_, KeyCode::Char('#'), _) => {
-                    state.focus = Focus::Jql;
-                    state.editing_jql = true;
-                    state.jql = vec![];
-                    state.jql_cursor = 0;
-                }
 
                 (_, KeyCode::Esc, _) => {
                     if state.show_help {
@@ -343,12 +365,14 @@ fn run_app(
                 // =========================
                 // ISSUE NAVIGATION
                 // =========================
-                (Focus::Issues, KeyCode::Char('d'), KeyModifiers::CONTROL) => {
-                    state.desc_scroll = state.desc_scroll.saturating_add(1);
-                }
-
-                (Focus::Issues, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
-                    state.desc_scroll = state.desc_scroll.saturating_sub(1);
+                (Focus::Issues, KeyCode::Char('u'), _) => {
+                    if let Some(issue) = state.selected() {
+                        if let Ok(transitions) = state.jira.get_transitions(&issue.key) {
+                            state.transitions = transitions;
+                            state.transition_selected = 0;
+                            state.show_transition_modal = true;
+                        }
+                    }
                 }
 
                 // =========================
@@ -393,6 +417,17 @@ fn run_app(
 
                 (Focus::Description, KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                     state.desc_scroll = state.desc_scroll.saturating_sub(1);
+                }
+
+                // =========================
+                // PANE FOCUS TOGGLE (FULLSCREEN)
+                // =========================
+                (_, KeyCode::Char('f'), _) => {
+                    if state.focused_pane.is_some() {
+                        state.focused_pane = None;
+                    } else {
+                        state.focused_pane = Some(state.active_pane);
+                    }
                 }
 
                 // =========================
