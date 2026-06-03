@@ -9,6 +9,7 @@ Simple CLI and TUI tools for Jira interactions. Manage your Jira tickets efficie
 Features may be incomplete, unstable, or subject to change. Please use with caution and expect potential issues. This software comes with no warranties.
 
 ### CLI Tool (`jira`)
+
 - **View Issues**: Show your assigned issues, issues by user, or search with JQL
 - **Create Issues**: Create new tickets with custom fields
 - **Update Status**: Transition tickets between states (todo/start/done/review/waiting)
@@ -18,6 +19,7 @@ Features may be incomplete, unstable, or subject to change. Please use with caut
 - **Caching**: Automatic caching of issue data for faster access
 
 ### TUI Tool (`lazyjira`)
+
 - **Interactive Interface**: Browse and manage issues in a terminal UI
 - **Real-time Search**: Search issues with JQL queries
 - **Issue Details**: View full ticket information with markdown rendering
@@ -46,11 +48,7 @@ make install
 make link
 ```
 
-This will install:
-- `jira` - The CLI tool
-- `lazyjira` - The TUI tool
-
-Make sure `~/.local/bin` is in your PATH.
+This will install `jira` and `lazyjira` into `~/.local/bin`. Make sure it's in your PATH.
 
 ## Configuration
 
@@ -141,23 +139,7 @@ jira from 'user1,user2,user3'
 
 ## TUI Usage
 
-Launch the interactive terminal interface:
-```bash
-lazyjira
-```
-
-### Navigation
-
-- `j/k` - Navigate issues
-- `/` - Update the currentJQL 
-- `q` - Quit
-
-### Features
-
-- **Top Panel**: Short Information of the Current Ticket
-- **Left Panel**: Issue list with status indicators
-- **Right Panel**: Detailed issue information
-- **Bottom Panel**: Current JQL query and status
+Launch the interactive terminal interface with `lazyjira`. With `?` the Navigation Key's will be shown. 
 
 ## Troubleshooting
 
