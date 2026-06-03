@@ -201,6 +201,32 @@ fn run_app(
                         state.editing_jql = false;
                         continue;
                     }
+                    KeyCode::Tab => {
+                        state.active_pane = state.active_pane.next();
+                        state.focused_pane = None;
+                        if state.active_pane == Pane::Bottom {
+                            state.focus = Focus::Jql;
+                            state.editing_jql = true;
+                            state.jql_cursor = state.jql.len();
+                        } else {
+                            state.focus = Focus::Issues;
+                            state.editing_jql = false;
+                        }
+                        continue;
+                    }
+                    KeyCode::BackTab => {
+                        state.active_pane = state.active_pane.prev();
+                        state.focused_pane = None;
+                        if state.active_pane == Pane::Bottom {
+                            state.focus = Focus::Jql;
+                            state.editing_jql = true;
+                            state.jql_cursor = state.jql.len();
+                        } else {
+                            state.focus = Focus::Issues;
+                            state.editing_jql = false;
+                        }
+                        continue;
+                    }
                     _ => continue,
                 }
             }
