@@ -39,17 +39,17 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
     };
 
     let title_prefix = if is_focused {
-        ">>> "
+        " >>>"
     } else if is_active_pane {
-        ">> "
+        " >>"
     } else {
         ""
     };
 
     let title = if is_focus_jql {
-        format!("{}JQL (active)", title_prefix)
+        format!("{} JQL (active) ", title_prefix)
     } else {
-        format!("{}JQL", title_prefix)
+        format!("{} JQL ", title_prefix)
     };
 
     let text: String = state.jql.iter().collect();

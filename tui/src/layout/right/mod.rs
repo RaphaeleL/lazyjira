@@ -37,9 +37,9 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
     };
 
     let title_prefix = if is_focused {
-        ">>> "
+        " >>>"
     } else if is_active {
-        ">> "
+        " >>"
     } else {
         ""
     };
@@ -50,7 +50,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
             let widget = Paragraph::new("No issue selected").block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(format!("{}Issue", title_prefix))
+                    .title(format!("{} Issue ", title_prefix))
                     .border_style(border_style),
             );
             f.render_widget(widget, draw_area);

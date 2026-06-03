@@ -36,9 +36,9 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
     };
 
     let title_prefix = if is_focused {
-        ">>> "
+        " >>>"
     } else if is_active {
-        ">> "
+        " >>"
     } else {
         ""
     };

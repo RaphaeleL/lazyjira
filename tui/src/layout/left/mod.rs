@@ -36,9 +36,9 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
     };
 
     let title_prefix = if is_focused {
-        ">>> "
+        " >>>"
     } else if is_active {
-        ">> "
+        " >>"
     } else {
         ""
     };
@@ -67,7 +67,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
             let global_index = list_offset + i;
 
             let prefix = if global_index == state.selected {
-                "> "
+                ">"
             } else {
                 "  "
             };
@@ -79,7 +79,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &AppState) {
         })
         .collect();
 
-    let title = format!("{}Issues ", title_prefix);
+    let title = format!("{} Issues ", title_prefix);
 
     let list = List::new(items).block(
         Block::default()
